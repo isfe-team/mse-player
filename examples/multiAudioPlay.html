@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+    <head>
+      <meta charset="utf-8"/>
+    </head>
+    <body>
+      <audio id="playpcm" controls></audio>
+      <input type="file" name="pic" id="pic" accept=".mp3" multiple class="file-init" />
+      <script type="module">
+        import msePlayer from '../src/MSEPlayer.js'
+        // 一次播多个整合的音频
+        const $audio = document.querySelector('#playpcm')
+        const $file = document.querySelector('#pic')
+        let player = null
+        let ininted = false
+        function log (data) {
+          console.log(data)
+        }
+        $file.addEventListener('change', function (event) {
+          const file = event.target.files
+          if (!ininted) {
+            player = new msePlayer({ files: file, onError: log })
+            ininted = true
+            $audio.src = URL.createObjectURL(player.mediaSource)
+            return
+          }
+          player.appendFiles(file)
+        })
+    </script>
+  </body>
+</html>
