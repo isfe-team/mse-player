@@ -2,9 +2,9 @@
  * use [lamejs](https://github.com/zhuker/lamejs#real-example) to encode mp3
  */
 export default function wavToMp3 (buffers) {
-  return Promise.all(buffers.map((buffer) => new Promise((resolve, reject) => {
-    const wav = lamejs.WavHeader.readHeader(new DataView(buffer))
-    const samples = new Int16Array(buffer, wav.dataOffset, wav.dataLen / 2)
+  return Promise.all(buffers.map((buf) => new Promise((resolve, reject) => {
+    const wav = lamejs.WavHeader.readHeader(new DataView(buf))
+    const samples = new Int16Array(buf, wav.dataOffset, wav.dataLen / 2)
     const buffer = [ ]
     const mp3enc = new lamejs.Mp3Encoder(wav.channels, wav.sampleRate, 128)
 
