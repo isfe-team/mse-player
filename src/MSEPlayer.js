@@ -57,7 +57,12 @@ function combine (files, mediaSource, sourceBuffer, transformer) {
   return read(files).then((buffers) => transformer(buffers)).then((buffers) => buffer(mediaSource, sourceBuffer, buffers))
 }
 
-function id (x) {
+/**
+ * identity
+ * @param {any} x
+ * @returns {any}
+ */
+function identity (x) {
   return x
 }
 
@@ -91,45 +96,21 @@ function genError (type, error) {
   }
 }
 
-/**
- * transformeArrayToArrays - [1, 2, 4, 4, 3] => [ [ 1 ], [ 2 ], [4, 4], [ 3 ] ]
- * @param {Array} files
- * @returns {Array<Array>}
- */
-
-function transformeArrayToArrays (files) {
-  const fileType = files.map((x) => {
-    const fileName = x.name.split('.')
-    return fileName[fileName.length - 1]
-  })
-  let conbineFiles = [ ]
-  let fileChilds = [files[0]]
-  for (let i = 0; i < fileType.length; i++) {
-    if (fileType[i] === fileType[i + 1]) {
-      fileChilds.push(files[i + 1])
-    } else {
-      conbineFiles.push(fileChilds)
-      fileChilds = [ ]
-      fileChilds.push(files[i + 1])
-    }
-  }
-  return conbineFiles
-}
-
 export default class MSEPlayer {
   /**
+   * MSEPlayer constructor
    * @param {{ files: Array, mimeType: string, onError: Function, ignoreError: boolean, transformer: Function }} option
-   * @param {Array} [option.files=[]] - 播放的文件列表,可以一次传一个也可以一次传多个
-   * @param {String} [option.mimeType='audio/mpeg'] - sourceBuffer支持的MimeType格式
-   * @param {Function} [option.onError] - 异常发生啥要做的事
-   * @param {boolean} [option.ignoreError=true] - 当异常发生时是否忽略它继续向下走
-   * @param {Function} [option.transformer] - 转换函数，用户可提供一个转换函数将file转成你想要的格式,比如wav转mp3
+   * @param {Array<File>} [option.files=[]] - files to play
+   * @param {String} [option.mimeType='audio/mpeg'] - mimeType that MediaSource should be supported
+   * @param {Function} [option.onError] - error callback, will be invoked when error occurred
+   * @param {boolean} [option.ignoreError=true] - if true, when sth. is wrong, the following `append$` will go through
+   * @param {Function} [option.transformer=identity] - a transformer that transform `ArrayBuffer` to `ArrayBuffer`
    * @example
    * const player = new MSEPlayer()
    * player.appendFiles(files)
    * @see https://developer.mozilla.org/zh-CN/docs/Web/API/Media_Source_Extensions_API
    */
-  constructor ({ files = [], mimeType = 'audio/mpeg', onError, ignoreError = true, transformer = id } = { }) {
+  constructor ({ files = [], mimeType = 'audio/mpeg', onError, ignoreError = true, transformer = identity } = { }) {
     this.envSupported = MSEPlayer.checkEnvSupported()
   
     this.onError = (...args) => {
@@ -177,38 +158,32 @@ export default class MSEPlayer {
     return 'MediaSource' in window
   }
 
-  appendFiles ({ files = [], ignorePrevError = true, transformer, isToArray = true, isTransformArray = true } = { }) {
-    if (isToArray) {
-      files = toArray(files)
-    }
-    files = isTransformArray ? transformeArrayToArrays(files) : files
-    const currentFiles = files.shift()
-    const fileType = currentFiles ? currentFiles[0].name.split('.').pop() : null
-    if (fileType !== 'mp3' && fileType !== 'wav') {
-      this.onError('文件格式不合法，请上传mp3或wav格式音频')
-      return
-    }
-    const currentTransformer = fileType === 'mp3' ? null : transformer
+  /**
+   * appendFiles
+   * @param {Array<File>} files
+   * @param {Function} [transformer=identity]
+   * @param {boolean} [ignorePrevError=true]
+   */
+  appendFiles (files = [], transformer = identity, ignorePrevError = true) {
+    files = toArray(files)
+
     if (ignorePrevError) {
       this.lastAppend$.catch(() => { })
     }
-    let combineTransform = null
-    if (currentTransformer) {
-      combineTransform = (data) => {
-        return currentTransformer(data).then((data) => this.transformer(data))
-      }
+
+    const combinedTransformer = function (buffers) {
+      return Promise.resolve(buffers)
+        .then(transformer) // specific transformer
+        .then((buffers) => this.transformer(buffers)) // common transformer
     }
-    const currentAppend$ = this.lastAppend$.then(() => combine(currentFiles, this.mediaSource, this.sourceBuffer, combineTransform || this.transformer))
+
+    const currentAppend$ = this.lastAppend$.then(
+      () => combine(files, this.mediaSource, this.sourceBuffer, combinedTransformer)
+    )
 
     this.lastAppend$ = currentAppend$.catch((err) => {
-      this.onError(err)
+      this.onError(genError('APPEND_ERROR', err))
     })
-
-    if (files.length) {
-      this.lastAppend$ = currentAppend$.then(() => {
-        this.appendFiles({ files: files , transformer: transformer, isToArray: false, isTransformArray: false })
-      })
-    }
 
     return this.ignoreError ? this.lastAppend$ : currentAppend$
   }

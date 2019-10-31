@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+  </head>
+  <body>
+    <audio controls preload="auto"></audio>
+    <input type="file" id="selector" accept=".wav,.mp3">
+
+    <script src="./node_modules/lamejs/lame.all.js"></script>
+    <script type="module">
+      import MSEPlayer from '../../src/MSEPlayer.js'
+      import wavToMp3 from './wavToMp3.js'
+      // 支持播放wav格式音频（transformer传wav转mp3方法时，可同时传包括wav和MP3一起的整合音频)
+      const $audio = document.querySelector('audio')
+      const $file = document.querySelector('#selector')
+
+      const player =  new MSEPlayer({ onError: console.log })
+      $audio.src = URL.createObjectURL(player.mediaSource)
+
+      function getTransformer (file) {
+        const ext = file.name.split('.').pop()
+        if (ext === 'wav') {
+          return wavToMp3
+        }
+        return undefined
+      }
+
+      // [mp3, wav, wav, mp3] =>
+      // [[[mp3], undefined], [[wav, wav], wavToMp3], [[.mp3], undefined]]
+      function group (files) {
+        return files.reduce((acc, file) => {
+          const transformer = getTransformer(file)
+          const prevFiles = acc.length > 0 ? acc[ret.length - 1] : null
+          if (prevFiles && prevFiles[1] === transformer) {
+            prevFiles[0].push(file)
+          } else {
+            acc.push([[file], transformer])
+          }
+
+          return acc
+        }, [])
+      }
+
+      $file.addEventListener('change', (evt) => {
+        group(files).forEach(([files, transformer]) => player.appendFiles(files, transformer))
+      })
+    </script>
+  </body>
+</html>

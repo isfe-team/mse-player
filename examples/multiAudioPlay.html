@@ -1,31 +1,31 @@
 <!DOCTYPE html>
 <html>
-    <head>
-      <meta charset="utf-8"/>
-    </head>
-    <body>
-      <audio id="playpcm" controls></audio>
-      <input type="file" name="pic" id="pic" accept=".mp3" multiple class="file-init" />
-      <script type="module">
-        import msePlayer from '../src/MSEPlayer.js'
-        // 一次播多个整合的音频
-        const $audio = document.querySelector('#playpcm')
-        const $file = document.querySelector('#pic')
-        let player = null
-        let ininted = false
-        function log (data) {
-          console.log(data)
+  <head>
+    <meta charset="utf-8"/>
+  </head>
+  <body>
+    <audio controls></audio>
+    <input type="file" id="selector" accept=".mp3" multiple>
+    <script type="module">
+      import MSEPlayer from '../src/MSEPlayer.js'
+
+      const $audio = document.querySelector('audio')
+      let player = null
+
+      function log (data) {
+        console.error(data)
+      }
+
+      document.querySelector('#selector').addEventListener('change', function (evt) {
+        const files = evt.target.files
+        // lazy init
+        if (!player) {
+          player = new MSEPlayer({ files, onError: log })
+          $audio.src = URL.createObjectURL(player.mediaSource)
+          return
         }
-        $file.addEventListener('change', function (event) {
-          const file = event.target.files
-          if (!ininted) {
-            player = new msePlayer({ files: file, onError: log })
-            ininted = true
-            $audio.src = URL.createObjectURL(player.mediaSource)
-            return
-          }
-          player.appendFiles(file)
-        })
+        player.appendFiles(files)
+      })
     </script>
   </body>
 </html>

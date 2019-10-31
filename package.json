@@ -4,6 +4,7 @@
   "description": "",
   "main": "src/MSEPlayer.js",
   "scripts": {
+    "lint": "eslint src/*.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
