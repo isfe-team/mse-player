@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+  </head>
+  <body>
+    <audio controls preload="auto"></audio>
+    <input type="file" id="selector" accept=".pcm" multiple>
+
+    <script src="./node_modules/lamejs/lame.all.js"></script>
+    <script type="module">
+      import MSEPlayer from '../../src/MSEPlayer.js'
+      import wavToMp3 from './wavToMp3.js'
+      import pcmToWav from '../../src/pcmToWav.js'
+      // 支持播放wav格式音频（transformer传wav转mp3方法时)
+      const $audio = document.querySelector('audio')
+      const $file = document.querySelector('#selector')
+
+      const player =  new MSEPlayer({ onError: console.log })
+      $audio.src = URL.createObjectURL(player.mediaSource)
+
+      function base64ToBlob (baseStr) {
+        // 截取base64的数据内容
+        const bstr = atob(baseStr.split(',')[1])
+        let n = bstr.length
+        const u8arr = new Uint8Array(n)
+        // 将二进制数据存入Uint8Array类型的数组中
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n)
+        }
+        return new Blob([u8arr], { type: 'audio.wav' })
+      }
+
+      $file.addEventListener('change', (evt) => {
+        const files = [].slice.call(evt.target.files)
+        Promise.all(files.map((file) => {
+          return pcmToWav(file)
+        })).then((base64Array) => {
+          const blobs = base64Array.map((x) => base64ToBlob(x))
+          player.appendFiles(blobs, wavToMp3)
+        })
+      })
+    </script>
+  </body>
+</html>
