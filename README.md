@@ -5,6 +5,6 @@
 
 ## Refs
 
-- [pcm to wav](https://www.zhuyuntao.cn/s%E5%AE%9E%E7%8E%B0pcm%E9%9F%B3%E9%A2%91%E8%BD%ACwav%E4%B8%8E%E6%92%AD%E6%94%BE)
+- [pcm to wav](https://segmentfault.com/a/1190000017982073?utm_source=tag-newest)
 
-- [Media Source Extension] (https://developer.mozilla.org/zh-CN/docs/Web/API/Media_Source_Extensions_API)
+- [Media Source Extension](https://developer.mozilla.org/zh-CN/docs/Web/API/Media_Source_Extensions_API)

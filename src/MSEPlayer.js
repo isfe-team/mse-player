@@ -26,7 +26,7 @@ function read (files) {
  * @returns {Promise<void>} 
  */
 function buffer (mediaSource, sourceBuffer, buffers) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     sourceBuffer.addEventListener('updateend', onUpdateEnd)
     // appendBuffer 也是一个异步的过程，完成前不能添加下一段资源，所以利用updateend事件(append或remove完成时会触发)
     function onUpdateEnd () {
@@ -54,9 +54,7 @@ function buffer (mediaSource, sourceBuffer, buffers) {
  * @param {SourceBuffer} sourceBuffer 
  */
 function combine (files, mediaSource, sourceBuffer, transformer) {
-  return read(files)
-          .then((buffers) => transformer(buffers))
-          .then((buffers) => buffer(mediaSource, sourceBuffer, buffers))
+  return read(files).then((buffers) => transformer(buffers)).then((buffers) => buffer(mediaSource, sourceBuffer, buffers))
 }
 
 function id (x) {
@@ -93,6 +91,31 @@ function genError (type, error) {
   }
 }
 
+/**
+ * transformeArrayToArrays - [1, 2, 4, 4, 3] => [ [ 1 ], [ 2 ], [4, 4], [ 3 ] ]
+ * @param {Array} files
+ * @returns {Array<Array>}
+ */
+
+function transformeArrayToArrays (files) {
+  const fileType = files.map((x) => {
+    const fileName = x.name.split('.')
+    return fileName[fileName.length - 1]
+  })
+  let conbineFiles = [ ]
+  let fileChilds = [files[0]]
+  for (let i = 0; i < fileType.length; i++) {
+    if (fileType[i] === fileType[i + 1]) {
+      fileChilds.push(files[i + 1])
+    } else {
+      conbineFiles.push(fileChilds)
+      fileChilds = [ ]
+      fileChilds.push(files[i + 1])
+    }
+  }
+  return conbineFiles
+}
+
 export default class MSEPlayer {
   /**
    * @param {{ files: Array, mimeType: string, onError: Function, ignoreError: boolean, transformer: Function }} option
@@ -108,7 +131,7 @@ export default class MSEPlayer {
    */
   constructor ({ files = [], mimeType = 'audio/mpeg', onError, ignoreError = true, transformer = id } = { }) {
     this.envSupported = MSEPlayer.checkEnvSupported()
-
+  
     this.onError = (...args) => {
       if (isFunction(onError)) {
         onError.call(this, ...args)
@@ -154,16 +177,38 @@ export default class MSEPlayer {
     return 'MediaSource' in window
   }
 
-  appendFiles (files = [], ignorePrevError = true) {
+  appendFiles ({ files = [], ignorePrevError = true, transformer, isToArray = true, isTransformArray = true } = { }) {
+    if (isToArray) {
+      files = toArray(files)
+    }
+    files = isTransformArray ? transformeArrayToArrays(files) : files
+    const currentFiles = files.shift()
+    const fileType = currentFiles ? currentFiles[0].name.split('.').pop() : null
+    if (fileType !== 'mp3' && fileType !== 'wav') {
+      this.onError('文件格式不合法，请上传mp3或wav格式音频')
+      return
+    }
+    const currentTransformer = fileType === 'mp3' ? null : transformer
     if (ignorePrevError) {
       this.lastAppend$.catch(() => { })
     }
-    files = toArray(files)
-    const currentAppend$ = this.lastAppend$.then(() => combine(files, this.mediaSource, this.sourceBuffer, this.transformer))
+    let combineTransform = null
+    if (currentTransformer) {
+      combineTransform = (data) => {
+        return currentTransformer(data).then((data) => this.transformer(data))
+      }
+    }
+    const currentAppend$ = this.lastAppend$.then(() => combine(currentFiles, this.mediaSource, this.sourceBuffer, combineTransform || this.transformer))
 
     this.lastAppend$ = currentAppend$.catch((err) => {
       this.onError(err)
     })
+
+    if (files.length) {
+      this.lastAppend$ = currentAppend$.then(() => {
+        this.appendFiles({ files: files , transformer: transformer, isToArray: false, isTransformArray: false })
+      })
+    }
 
     return this.ignoreError ? this.lastAppend$ : currentAppend$
   }

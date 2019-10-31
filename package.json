@@ -6,7 +6,13 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["mse", "pcm"],
+  "keywords": [
+    "mse",
+    "pcm"
+  ],
   "author": "hxli8@iflytek.com",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "eslint": "^6.6.0"
+  }
 }
