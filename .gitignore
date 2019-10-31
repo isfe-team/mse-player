@@ -1,2 +1,2 @@
 /node_modules
-**/node_modules
+/examples/use_transformer/node_modules

@@ -171,7 +171,7 @@ export default class MSEPlayer {
       this.lastAppend$.catch(() => { })
     }
 
-    const combinedTransformer = function (buffers) {
+    const combinedTransformer = (buffers) => {
       return Promise.resolve(buffers)
         .then(transformer) // specific transformer
         .then((buffers) => this.transformer(buffers)) // common transformer
