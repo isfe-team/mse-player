@@ -1,16 +1,29 @@
+// @ts-check
+// @todo use `ts`
+
 /**
- * readBuffer - 将文件转写成arrayBuffer格式
- * @param {Array<File>} files 
+ * @typedef {{type: string, error: any}} MSE_SDK_ERROR
+ * @typedef {(buffers: Array<ArrayBuffer>) => Array<ArrayBuffer> | Promise<Array<ArrayBuffer>>} Transformer
+ * for users, `files` is more meaningful, so I don't use `blobs`
+ * @typedef {{ files?: Array<Blob>, mimeType?: string, onError?: Function, ignoreError?: boolean, transformer?: Transformer }} MSE_SDK_OPTION
+ */
+
+/**
+ * readBuffer - read blobs and get arrayBuffers
+ * @param {Array<Blob>} blobs
  * @returns {Promise<Array<ArrayBuffer>>}
  */
-function read (files) {
-  return Promise.all(files.map(function(file) {
+function read (blobs) {
+  return Promise.all(blobs.map(function(blob) {
     return new Promise(function(resolve, reject) {
+      // hmmm, no need to unbind, if it's smart enough
       const reader = new FileReader()
       reader.addEventListener('load', () => {
+        // @ts-ignore
+        // the result must be `ArrayBuffer`
         resolve(reader.result)
       })
-      reader.readAsArrayBuffer(file)
+      reader.readAsArrayBuffer(blob)
       reader.addEventListener('error', (err) => {
         reject(genError('READ_FILE_ERROR', err))
       })
@@ -19,7 +32,7 @@ function read (files) {
 }
 
 /**
- * buffer - 将拿到的buffer添加到sourceBuffer里面
+ * buffer - append buffers to specific sourceBuffer
  * @param {MediaSource} mediaSource 
  * @param {SourceBuffer} sourceBuffer 
  * @param {Array<ArrayBuffer>} buffers
@@ -28,30 +41,42 @@ function read (files) {
 function buffer (mediaSource, sourceBuffer, buffers) {
   return new Promise((resolve, reject) => {
     sourceBuffer.addEventListener('updateend', onUpdateEnd)
-    // appendBuffer 也是一个异步的过程，完成前不能添加下一段资源，所以利用updateend事件(append或remove完成时会触发)
+    sourceBuffer.addEventListener('error', onAppendError)
+
+    // it's async when `appendBuffer`,
+    // we should use `updateend` event(triggers when `append` or `removed`) to ensure the orders
     function onUpdateEnd () {
       if (buffers.length === 0) {
         mediaSource.endOfStream()
+        // don't forget to remove
         sourceBuffer.removeEventListener('updateend', onUpdateEnd)
+        sourceBuffer.removeEventListener('error', onAppendError)
         resolve()
         return
       }
       sourceBuffer.appendBuffer(buffers.shift())
     }
-    sourceBuffer.addEventListener('error', (err) => {
-      // 此时不需额外解绑updateend和调用endOfStream，因为err事件执行后还会继续执行updateend
+
+    function onAppendError (err) {
+      // no need to unbind `updateend` and invoke `endOfStream` here,
+      // because when `error` occurs, `updateend` will go according to the spec.
       // @see https://w3c.github.io/media-source/#sourcebuffer-append-error
-      reject('APPEND_BUFFER_ERROR', err)
-    })
+      reject(genError('APPEND_BUFFER_ERROR', err))
+    }
+
+    // trigger first buffer
     onUpdateEnd()
   })
 }
 
 /**
- * combine - 结合read和buffer函数，且确保buffer在read执行完成之后执行
- * @param {Array<File>} files 
- * @param {MediaSource} mediaSource 
- * @param {SourceBuffer} sourceBuffer 
+ * combine - combine the `read` process and the `buffer` process
+ * to ensure the `read` process is excuted before the `buffer` process.
+ * just a combination.
+ * @param {Array<File>} files
+ * @param {MediaSource} mediaSource
+ * @param {SourceBuffer} sourceBuffer
+ * @param {Transformer} transformer
  */
 function combine (files, mediaSource, sourceBuffer, transformer) {
   return read(files).then((buffers) => transformer(buffers)).then((buffers) => buffer(mediaSource, sourceBuffer, buffers))
@@ -59,8 +84,9 @@ function combine (files, mediaSource, sourceBuffer, transformer) {
 
 /**
  * identity
- * @param {any} x
- * @returns {any}
+ * @todo I don't know how to define the generic param of `Function`, so use `any` here
+ * @param {Array<ArrayBuffer>} x
+ * @returns {Array<ArrayBuffer>}
  */
 function identity (x) {
   return x
@@ -77,8 +103,9 @@ function isFunction (x) {
 
 /**
  * toArray
- * @param {ArrayLike<T>} xs
- * @returns {Array<T>}
+ * @todo I don't know how to define the generic param of `Function`, so use `any` here
+ * @param {ArrayLike<any>} xs
+ * @returns {Array<any>}
  */
 function toArray (xs) {
   return [].slice.call(xs)
@@ -86,8 +113,9 @@ function toArray (xs) {
 
 /**
  * genError
- * @param {string} type 
- * @param {any} error 
+ * @param {string} type
+ * @param {any} [error]
+ * @returns {MSE_SDK_ERROR}
  */
 function genError (type, error) {
   return {
@@ -98,19 +126,22 @@ function genError (type, error) {
 
 export default class MSEPlayer {
   /**
-   * MSEPlayer constructor
-   * @param {{ files: Array, mimeType: string, onError: Function, ignoreError: boolean, transformer: Function }} option
+   * constructor
+   * @todo improve `typedef`
+   * @param {object} [option]
    * @param {Array<File>} [option.files=[]] - files to play
    * @param {String} [option.mimeType='audio/mpeg'] - mimeType that MediaSource should be supported
    * @param {Function} [option.onError] - error callback, will be invoked when error occurred
    * @param {boolean} [option.ignoreError=true] - if true, when sth. is wrong, the following `append$` will go through
-   * @param {Function} [option.transformer=identity] - a transformer that transform `ArrayBuffer` to `ArrayBuffer`
+   * @param {Transformer} [option.transformer=identity] - a transformer that transform `ArrayBuffer` to `ArrayBuffer`
    * @example
    * const player = new MSEPlayer()
    * player.appendFiles(files)
    * @see https://developer.mozilla.org/zh-CN/docs/Web/API/Media_Source_Extensions_API
    */
-  constructor ({ files = [], mimeType = 'audio/mpeg', onError, ignoreError = true, transformer = identity } = { }) {
+  // constructor ({ files = [], mimeType = 'audio/mpeg', onError, ignoreError = true, transformer = identity } = { }) {
+  constructor (option) {
+    const { files = [], mimeType = 'audio/mpeg', onError, ignoreError = true, transformer = identity } = option
     this.envSupported = MSEPlayer.checkEnvSupported()
   
     this.onError = (...args) => {
@@ -147,7 +178,7 @@ export default class MSEPlayer {
       })
     }
 
-    this.lastAppend$ = onSourceOpenWithPromise(player.mediaSource)
+    this.lastAppend$ = onSourceOpenWithPromise()
 
     if (files.length > 0) {
       this.appendFiles(files)
@@ -161,7 +192,7 @@ export default class MSEPlayer {
   /**
    * appendFiles
    * @param {Array<File>} files
-   * @param {Function} [transformer=identity]
+   * @param {Transformer} [transformer=identity]
    * @param {boolean} [ignorePrevError=true]
    */
   appendFiles (files = [], transformer = identity, ignorePrevError = true) {
@@ -171,6 +202,11 @@ export default class MSEPlayer {
       this.lastAppend$.catch(() => { })
     }
 
+    /**
+     * 
+     * @param {Array<ArrayBuffer>} buffers
+     * @returns {Promise<Array<ArrayBuffer>>}
+     */
     const combinedTransformer = (buffers) => {
       return Promise.resolve(buffers)
         .then(transformer) // specific transformer
