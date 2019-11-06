@@ -4,9 +4,9 @@ function addWavHeader (samples, sampleRate, sampleBits, channelCount) {
   const dataLength = samples.byteLength
   const buffer = new ArrayBuffer(44 + dataLength)
   const view = new DataView(buffer)
-  function writeString (view, offset, string) {
-    for (let i = 0; i < string.length; i++) {
-      view.setUint8(offset + i, string.charCodeAt(i))
+  function writeString (view, offset, str) {
+    for (let i = 0; i < str.length; i++) {
+      view.setUint8(offset + i, str.charCodeAt(i))
     }
   }
   let offset = 0
@@ -37,21 +37,21 @@ function addWavHeader (samples, sampleRate, sampleBits, channelCount) {
   /* 采样数据总数,即数据总大小-44 */
   view.setUint32(offset, dataLength, true); offset += 4
   function floatTo32BitPCM (output, offset, input) {
-    input = new Int32Array(input)
-    for (let i = 0; i < input.length; i++, offset += 4) {
-      output.setInt32(offset,input[i], true)
+    const i32xs = new Int32Array(input)
+    for (let i = 0; i < i32xs.length; i++, offset += 4) {
+      output.setInt32(offset, i32xs[i], true)
     }
   }
-  function floatTo16BitPCM (output, offset, input) {
-    input = new Int16Array(input)
-    for (let i = 0; i < input.length; i++, offset+=2) {
-      output.setInt16(offset,input[i], true)
+  function floatTo16BitPCM (output, offset, input){
+    const i16xs = new Int16Array(input)
+    for (let i = 0; i < i16xs.length; i++, offset+=2) {
+      output.setInt16(offset, i16xs[i], true)
     }
   }
   function floatTo8BitPCM (output, offset, input) {
-    input = new Int8Array(input)
-    for (let i = 0; i < input.length; i++, offset++){
-      output.setInt8(offset,input[i], true)
+    const i8xs = new Int8Array(input)
+    for (let i = 0; i < i8xs.length; i++, offset++){
+      output.setInt8(offset, i8xs[i])
     }
   }
   if (sampleBits === 16) {

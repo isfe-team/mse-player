@@ -226,7 +226,6 @@ export default class MSEPlayer {
   }
 
   destroy () {
-    this.files = null
     this.mediaSource = null
     this.sourceBuffer = null
   }

@@ -1,7 +1,7 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 interface MSESdkError<T = any> {
   type: string;
-  error: T;
+  error?: T;
 }
 
 interface Transformer {
@@ -18,11 +18,110 @@ interface MSESdkOption {
 }
 
 /**
+ * @example
+ * const player = new MSEPlayer()
+ * player.appendFiles(files)
+ * @see https://developer.mozilla.org/zh-CN/docs/Web/API/Media_Source_Extensions_API
+ */
+export default class MSEPlayer {
+  envSupported: boolean
+  onError: Function
+  mimeType!: string
+  sourceBuffer!: SourceBuffer | null
+  ignoreError!: boolean
+  transformer!: Transformer
+  mediaSource!: MediaSource | null
+  lastAppend$!: Promise<void>
+  constructor (option: MSESdkOption = { }) {
+    const { files = [], mimeType = 'audio/mpeg', onError, ignoreError = true, transformer = identity } = option
+    this.envSupported = MSEPlayer.checkEnvSupported()
+  
+    this.onError = (...args: any[]) => {
+      if (isFunction(onError)) {
+        onError.call(this, ...args)
+      }
+    }
+
+    if (!this.envSupported) {
+      this.onError(genError('MEDIA_SOURCE_NOT_SUPPORTED'))
+      return
+    }
+
+    if (!MediaSource.isTypeSupported(mimeType)) {
+      this.onError(genError('MIME_TYPE_NOT_SUPPORTED'))
+      return
+    }
+
+    this.mimeType = mimeType
+    this.sourceBuffer = null
+    this.ignoreError = ignoreError
+    this.transformer = transformer
+    this.mediaSource = new MediaSource()
+
+    // eslint-disable-next-line @typescript-eslint/no-this-alias
+    const player = this
+    function onSourceOpenWithPromise (): Promise<void> {
+      return new Promise((resolve) => {
+        const mediaSource: MediaSource = player.mediaSource as MediaSource
+        mediaSource.addEventListener('sourceopen', onSourceOpen)
+        function onSourceOpen () {
+          mediaSource.removeEventListener('sourceopen', onSourceOpen)
+          player.sourceBuffer = mediaSource.addSourceBuffer(player.mimeType)
+          resolve()
+        }
+      })
+    }
+
+    this.lastAppend$ = onSourceOpenWithPromise()
+
+    if (files.length > 0) {
+      this.appendFiles(files)
+    }
+  }
+
+  static checkEnvSupported () {
+    return 'MediaSource' in window
+  }
+
+  /**
+   * appendFiles
+   */
+  appendFiles (files: Array<Blob> = [], transformer: Transformer = identity, ignorePrevError = true) {
+    files = toArray(files)
+
+    if (ignorePrevError) {
+      this.lastAppend$.catch(() => { })
+    }
+
+    const combinedTransformer = (buffers: Array<ArrayBuffer>) => {
+      return Promise.resolve(buffers)
+        .then(transformer) // specific transformer
+        .then((buffers) => this.transformer(buffers)) // common transformer
+    }
+
+    const currentAppend$ = this.lastAppend$.then(
+      () => combine(files, this.mediaSource as MediaSource, this.sourceBuffer as SourceBuffer, combinedTransformer)
+    )
+
+    this.lastAppend$ = currentAppend$.catch((err) => {
+      this.onError(genError('APPEND_ERROR', err))
+    })
+
+    return this.ignoreError ? this.lastAppend$ : currentAppend$
+  }
+
+  destroy () {
+    this.mediaSource = null
+    this.sourceBuffer = null
+  }
+}
+
+/**
  * readBuffer - read blobs and get arrayBuffers
  */
 function read (blobs: Array<Blob>): Promise<Array<ArrayBuffer>> {
   return Promise.all(blobs.map(function(blob) {
-    return new Promise(function(resolve, reject) {
+    return new Promise<ArrayBuffer>(function(resolve, reject) {
       // hmmm, no need to unbind, if it's smart enough
       const reader = new FileReader()
       reader.addEventListener('load', () => {
@@ -56,10 +155,10 @@ function buffer (mediaSource: MediaSource, sourceBuffer: SourceBuffer, buffers: 
         resolve()
         return
       }
-      sourceBuffer.appendBuffer(buffers.shift())
+      sourceBuffer.appendBuffer(buffers.shift() as ArrayBuffer)
     }
 
-    function onAppendError (err) {
+    function onAppendError (err: any) {
       // no need to unbind `updateend` and invoke `endOfStream` here,
       // because when `error` occurs, `updateend` will go according to the spec.
       // @see https://w3c.github.io/media-source/#sourcebuffer-append-error
@@ -110,105 +209,5 @@ function genError<T = any> (type: string, error?: T): MSESdkError<T> {
   return {
     type,
     error
-  }
-}
-
-/**
- * @example
- * const player = new MSEPlayer()
- * player.appendFiles(files)
- * @see https://developer.mozilla.org/zh-CN/docs/Web/API/Media_Source_Extensions_API
- */
-export default class MSEPlayer {
-  envSupported: boolean
-  files: Array<Blob>
-  onError: Function
-  mimeType: string
-  sourceBuffer: SourceBuffer
-  ignoreError: boolean
-  transformer: Transformer
-  mediaSource: MediaSource
-  lastAppend$: Promise<void>
-  constructor (option: MSESdkOption = { }) {
-    const { files = [], mimeType = 'audio/mpeg', onError, ignoreError = true, transformer = identity } = option
-    this.envSupported = MSEPlayer.checkEnvSupported()
-  
-    this.onError = (...args) => {
-      if (isFunction(onError)) {
-        onError.call(this, ...args)
-      }
-    }
-
-    if (!this.envSupported) {
-      this.onError(genError('MEDIA_SOURCE_NOT_SUPPORTED'))
-      return
-    }
-
-    if (!MediaSource.isTypeSupported(mimeType)) {
-      this.onError(genError('MIME_TYPE_NOT_SUPPORTED'))
-      return
-    }
-
-    this.mimeType = mimeType
-    this.sourceBuffer = null
-    this.ignoreError = ignoreError
-    this.transformer = transformer
-    this.mediaSource = new MediaSource()
-
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
-    const player = this
-    function onSourceOpenWithPromise (): Promise<void> {
-      return new Promise((resolve) => {
-        player.mediaSource.addEventListener('sourceopen', onSourceOpen)
-        function onSourceOpen () {
-          player.mediaSource.removeEventListener('sourceopen', onSourceOpen)
-          player.sourceBuffer = player.mediaSource.addSourceBuffer(player.mimeType)
-          resolve()
-        }
-      })
-    }
-
-    this.lastAppend$ = onSourceOpenWithPromise()
-
-    if (files.length > 0) {
-      this.appendFiles(files)
-    }
-  }
-
-  static checkEnvSupported () {
-    return 'MediaSource' in window
-  }
-
-  /**
-   * appendFiles
-   */
-  appendFiles (files: Array<Blob> = [], transformer: Transformer = identity, ignorePrevError = true) {
-    files = toArray(files)
-
-    if (ignorePrevError) {
-      this.lastAppend$.catch(() => { })
-    }
-
-    const combinedTransformer = (buffers: Array<ArrayBuffer>) => {
-      return Promise.resolve(buffers)
-        .then(transformer) // specific transformer
-        .then((buffers) => this.transformer(buffers)) // common transformer
-    }
-
-    const currentAppend$ = this.lastAppend$.then(
-      () => combine(files, this.mediaSource, this.sourceBuffer, combinedTransformer)
-    )
-
-    this.lastAppend$ = currentAppend$.catch((err) => {
-      this.onError(genError('APPEND_ERROR', err))
-    })
-
-    return this.ignoreError ? this.lastAppend$ : currentAppend$
-  }
-
-  destroy () {
-    this.files = null
-    this.mediaSource = null
-    this.sourceBuffer = null
   }
 }
