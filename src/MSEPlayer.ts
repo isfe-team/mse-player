@@ -1,27 +1,33 @@
-// @ts-check
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+interface MSESdkError<T = any> {
+  type: string;
+  error: T;
+}
 
-/**
- * @typedef {{type: string, error: any}} MSESdkError
- * @typedef {(buffers: Array<ArrayBuffer>) => Array<ArrayBuffer> | Promise<Array<ArrayBuffer>>} Transformer
- * for users, `files` is more meaningful, so I don't use `blobs`
- * @typedef {{ files?: Array<Blob>, mimeType?: string, onError?: Function, ignoreError?: boolean, transformer?: Transformer }} MSESdkOption
- */
+interface Transformer {
+  (buffers: Array<ArrayBuffer>): Array<ArrayBuffer> | Promise<Array<ArrayBuffer>>;
+}
+
+interface MSESdkOption {
+  // for users, `files` is more meaningful, so I don't use `blobs`
+  files?: Array<Blob>;
+  mimeType?: string;
+  onError?: Function;
+  ignoreError?: boolean;
+  transformer?: Transformer;
+}
 
 /**
  * readBuffer - read blobs and get arrayBuffers
- * @param {Array<Blob>} blobs
- * @returns {Promise<Array<ArrayBuffer>>}
  */
-function read (blobs) {
+function read (blobs: Array<Blob>): Promise<Array<ArrayBuffer>> {
   return Promise.all(blobs.map(function(blob) {
     return new Promise(function(resolve, reject) {
       // hmmm, no need to unbind, if it's smart enough
       const reader = new FileReader()
       reader.addEventListener('load', () => {
-        // eslint-disable-next-line @typescript-eslint/ban-ts-ignore
-        // @ts-ignore
         // the result must be `ArrayBuffer`
-        resolve(reader.result)
+        resolve(reader.result as ArrayBuffer)
       })
       reader.readAsArrayBuffer(blob)
       reader.addEventListener('error', (err) => {
@@ -33,12 +39,8 @@ function read (blobs) {
 
 /**
  * buffer - append buffers to specific sourceBuffer
- * @param {MediaSource} mediaSource 
- * @param {SourceBuffer} sourceBuffer 
- * @param {Array<ArrayBuffer>} buffers
- * @returns {Promise<void>} 
  */
-function buffer (mediaSource, sourceBuffer, buffers) {
+function buffer (mediaSource: MediaSource, sourceBuffer: SourceBuffer, buffers: Array<ArrayBuffer>): Promise<void> {
   return new Promise((resolve, reject) => {
     sourceBuffer.addEventListener('updateend', onUpdateEnd)
     sourceBuffer.addEventListener('error', onAppendError)
@@ -73,74 +75,61 @@ function buffer (mediaSource, sourceBuffer, buffers) {
  * combine - combine the `read` process and the `buffer` process
  * to ensure the `read` process is excuted before the `buffer` process.
  * just a combination.
- * @param {Array<Blob>} files
- * @param {MediaSource} mediaSource
- * @param {SourceBuffer} sourceBuffer
- * @param {Transformer} transformer
  */
-function combine (files, mediaSource, sourceBuffer, transformer) {
+function combine (files: Array<Blob>, mediaSource: MediaSource, sourceBuffer: SourceBuffer, transformer: Transformer) {
   return read(files).then((buffers) => transformer(buffers)).then((buffers) => buffer(mediaSource, sourceBuffer, buffers))
 }
 
 /**
  * identity
- * @todo I don't know how to define the generic param of `Function`, so use `any` here
- * @param {Array<ArrayBuffer>} x
- * @returns {Array<ArrayBuffer>}
  */
-function identity (x) {
+function identity<T> (x: T) {
   return x
 }
 
 /**
  * isFunction
- * @param {any} x
- * @returns {boolean}
  */
-function isFunction (x) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function isFunction (x: any): x is Function {
   return Object.prototype.toString.call(x) === '[object Function]'
 }
 
 /**
  * toArray
- * @todo I don't know how to define the generic param of `Function`, so use `any` here
- * @param {ArrayLike<any>} xs
- * @returns {Array<any>}
  */
-function toArray (xs) {
+function toArray<T> (xs: ArrayLike<T>): Array<T> {
   return [].slice.call(xs)
 }
 
 /**
  * genError
- * @param {string} type
- * @param {any} [error]
- * @returns {MSESdkError}
  */
-function genError (type, error) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function genError<T = any> (type: string, error?: T): MSESdkError<T> {
   return {
     type,
     error
   }
 }
 
+/**
+ * @example
+ * const player = new MSEPlayer()
+ * player.appendFiles(files)
+ * @see https://developer.mozilla.org/zh-CN/docs/Web/API/Media_Source_Extensions_API
+ */
 export default class MSEPlayer {
-  /**
-   * constructor
-   * @todo improve `typedef`
-   * @param {object} [option]
-   * @param {Array<File>} [option.files=[]] - files to play
-   * @param {String} [option.mimeType='audio/mpeg'] - mimeType that MediaSource should be supported
-   * @param {Function} [option.onError] - error callback, will be invoked when error occurred
-   * @param {boolean} [option.ignoreError=true] - if true, when sth. is wrong, the following `append$` will go through
-   * @param {Transformer} [option.transformer=identity] - a transformer that transform `ArrayBuffer` to `ArrayBuffer`
-   * @example
-   * const player = new MSEPlayer()
-   * player.appendFiles(files)
-   * @see https://developer.mozilla.org/zh-CN/docs/Web/API/Media_Source_Extensions_API
-   */
-  // constructor ({ files = [], mimeType = 'audio/mpeg', onError, ignoreError = true, transformer = identity } = { }) {
-  constructor (option) {
+  envSupported: boolean
+  files: Array<Blob>
+  onError: Function
+  mimeType: string
+  sourceBuffer: SourceBuffer
+  ignoreError: boolean
+  transformer: Transformer
+  mediaSource: MediaSource
+  lastAppend$: Promise<void>
+  constructor (option: MSESdkOption = { }) {
     const { files = [], mimeType = 'audio/mpeg', onError, ignoreError = true, transformer = identity } = option
     this.envSupported = MSEPlayer.checkEnvSupported()
   
@@ -168,7 +157,7 @@ export default class MSEPlayer {
 
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     const player = this
-    function onSourceOpenWithPromise () {
+    function onSourceOpenWithPromise (): Promise<void> {
       return new Promise((resolve) => {
         player.mediaSource.addEventListener('sourceopen', onSourceOpen)
         function onSourceOpen () {
@@ -192,23 +181,15 @@ export default class MSEPlayer {
 
   /**
    * appendFiles
-   * @param {Array<Blob>} files
-   * @param {Transformer} [transformer=identity]
-   * @param {boolean} [ignorePrevError=true]
    */
-  appendFiles (files = [], transformer = identity, ignorePrevError = true) {
+  appendFiles (files: Array<Blob> = [], transformer: Transformer = identity, ignorePrevError = true) {
     files = toArray(files)
 
     if (ignorePrevError) {
       this.lastAppend$.catch(() => { })
     }
 
-    /**
-     * 
-     * @param {Array<ArrayBuffer>} buffers
-     * @returns {Promise<Array<ArrayBuffer>>}
-     */
-    const combinedTransformer = (buffers) => {
+    const combinedTransformer = (buffers: Array<ArrayBuffer>) => {
       return Promise.resolve(buffers)
         .then(transformer) // specific transformer
         .then((buffers) => this.transformer(buffers)) // common transformer

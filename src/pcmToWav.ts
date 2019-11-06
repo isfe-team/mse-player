@@ -1,6 +1,7 @@
-// @ts-check
-
-function addWavHeader (samples, sampleRate, sampleBits, channelCount) {
+/**
+ * addWavHeader
+ */
+function addWavHeader (samples: ArrayBuffer, sampleRate: number, sampleBits: number, channelCount: number) {
   const dataLength = samples.byteLength
   const buffer = new ArrayBuffer(44 + dataLength)
   const view = new DataView(buffer)
@@ -64,7 +65,10 @@ function addWavHeader (samples, sampleRate, sampleBits, channelCount) {
   return view.buffer
 }
 
-function bufferToBase64 (buffer) {
+/**
+ * bufferToBase64
+ */
+function bufferToBase64 (buffer: ArrayBuffer) {
   const content = new Uint8Array(buffer).reduce((data, byte) => {
     return data + String.fromCharCode(byte)
   }, '')
@@ -73,22 +77,17 @@ function bufferToBase64 (buffer) {
 }
 
 /**
- * @param {Blob} file - File
- * @param {number} [sampleRate=16000]
- * @param {number} [sampleBits=16]
- * @param {number} [channelCount=1]
- * @returns {Promise<string>}
- *
+ * pcmToWav
  * @example
- * pcmToWav(file).then((src) => $audio.src = src)
+ * pcm2base64(file).then((src) => $audio.src = src)
  */
-export default function pcmToWav (file, sampleRate = 16000, sampleBits = 16, channelCount = 1) {
+export default function pcmToWav (file: Blob, sampleRate = 16000, sampleBits = 16, channelCount = 1) {
   const reader = new FileReader()
 
   // no need to `removeEventListener` if smart enough
   const promise = new Promise((resolve, reject) => {
     reader.addEventListener('load', () => {
-      const buffer = addWavHeader(reader.result, sampleRate, sampleBits, channelCount)
+      const buffer = addWavHeader(reader.result as ArrayBuffer, sampleRate, sampleBits, channelCount)
       resolve(bufferToBase64(buffer))
     })
 
