@@ -2,12 +2,14 @@
   "name": "mse-player",
   "version": "0.2.0",
   "description": "",
-  "main": "src/MSEPlayer.js",
+  "main": "dist/MSEPlayer.esm.js",
   "scripts": {
     "lint": "eslint src/*",
     "test": "echo \"Error: no test specified\" && exit 1",
     "ts-compile": "tsc -w",
-    "ts-build": "tsc"
+    "ts-build": "tsc",
+    "build": "rollup -c",
+    "watch": "rollup -w"
   },
   "keywords": [
     "mse",
@@ -19,6 +21,9 @@
     "@typescript-eslint/eslint-plugin": "^2.6.1",
     "@typescript-eslint/parser": "^2.6.1",
     "eslint": "^6.6.0",
+    "rollup": "^1.26.3",
+    "rollup-plugin-typescript": "^1.0.1",
+    "rollup-plugin-uglify": "^6.0.3",
     "typescript": "^3.7.2"
   }
 }

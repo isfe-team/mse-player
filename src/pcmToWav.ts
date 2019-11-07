@@ -2,7 +2,7 @@
 /**
  * pcmToWav
  * @example
- * pcm2base64(file).then((src) => $audio.src = src)
+ * pcmToWav(file).then((src) => $audio.src = src)
  */
 export default function pcmToWav (file: Blob, sampleRate = 16000, sampleBits = 16, channelCount = 1) {
   const reader = new FileReader()
