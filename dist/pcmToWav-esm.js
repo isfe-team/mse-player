@@ -111,6 +111,7 @@ function bufferToBase64(buffer) {
     }, '');
     return "data:audio/wav;base64," + btoa(content);
 }
+//# sourceMappingURL=pcmToWav.js.map
 
 export default pcmToWav;
 //# sourceMappingURL=pcmToWav-esm.js.map

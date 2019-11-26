@@ -9,7 +9,7 @@
     "ts-compile": "tsc -w",
     "ts-build": "tsc",
     "build": "rollup -c",
-    "watch": "rollup -w"
+    "watch": "rollup -c -w"
   },
   "keywords": [
     "mse",
