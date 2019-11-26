@@ -1,5 +1,5 @@
 {
-  "name": "mse-player",
+  "name": "@isfe/mse-player",
   "version": "0.2.0",
   "description": "",
   "main": "dist/MSEPlayer.esm.js",
@@ -15,6 +15,10 @@
     "mse",
     "pcm"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/isfe-team/mse-player.git"
+  },
   "author": "hxli8@iflytek.com",
   "license": "ISC",
   "devDependencies": {
