@@ -5,7 +5,7 @@
 ## Solves
 
 - pcm to wav
-- use MediaSource to play multiple pcm/mp3 files(concat) etc
+- use MediaSource to play multiple pcm/wav/mp3 files(concat) etc
 
 ## Refs
 
