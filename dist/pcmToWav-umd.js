@@ -117,7 +117,6 @@
       }, '');
       return "data:audio/wav;base64," + btoa(content);
   }
-  //# sourceMappingURL=pcmToWav.js.map
 
   return pcmToWav;
 
