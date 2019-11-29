@@ -20,7 +20,7 @@ function genConfigs () {
         name,
         format,
         sourcemap: true,
-        file: `dist/${name}-${format}.js`
+        file: `dist/${name}.${format}.js`
       }
     }
 
