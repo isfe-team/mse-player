@@ -1,26 +1,13 @@
 /**
- * pcmToWav
- * @example
- * pcmToWav(file).then((src) => $audio.src = src)
+ * bufferToBase64
  */
-function pcmToWav(file, sampleRate, sampleBits, channelCount) {
-    if (sampleRate === void 0) { sampleRate = 16000; }
-    if (sampleBits === void 0) { sampleBits = 16; }
-    if (channelCount === void 0) { channelCount = 1; }
-    var reader = new FileReader();
-    // no need to `removeEventListener` if smart enough
-    var promise = new Promise(function (resolve, reject) {
-        reader.addEventListener('load', function () {
-            var buffer = addWavHeader(reader.result, sampleRate, sampleBits, channelCount);
-            resolve(bufferToBase64(buffer));
-        });
-        reader.addEventListener('error', function (err) {
-            reject(err);
-        });
-    });
-    reader.readAsArrayBuffer(file);
-    return promise;
+function bufferToBase64(buffer) {
+    var content = new Uint8Array(buffer).reduce(function (data, byte) {
+        return data + String.fromCharCode(byte);
+    }, '');
+    return "data:audio/wav;base64," + btoa(content);
 }
+
 /**
  * addWavHeader
  */
@@ -102,14 +89,29 @@ function addWavHeader(samples, sampleRate, sampleBits, channelCount) {
     }
     return view.buffer;
 }
+
 /**
- * bufferToBase64
+ * pcmToWav
+ * @example
+ * pcmToWav(file).then((src) => $audio.src = src)
  */
-function bufferToBase64(buffer) {
-    var content = new Uint8Array(buffer).reduce(function (data, byte) {
-        return data + String.fromCharCode(byte);
-    }, '');
-    return "data:audio/wav;base64," + btoa(content);
+function pcmToWav(file, sampleRate, sampleBits, channelCount) {
+    if (sampleRate === void 0) { sampleRate = 16000; }
+    if (sampleBits === void 0) { sampleBits = 16; }
+    if (channelCount === void 0) { channelCount = 1; }
+    var reader = new FileReader();
+    // no need to `removeEventListener` if smart enough
+    var promise = new Promise(function (resolve, reject) {
+        reader.addEventListener('load', function () {
+            var buffer = addWavHeader(reader.result, sampleRate, sampleBits, channelCount);
+            resolve(bufferToBase64(buffer));
+        });
+        reader.addEventListener('error', function (err) {
+            reject(err);
+        });
+    });
+    reader.readAsArrayBuffer(file);
+    return promise;
 }
 
 export default pcmToWav;

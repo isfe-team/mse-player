@@ -1,9 +1,14 @@
 import rollupTypescript from 'rollup-plugin-typescript'
-import { uglify as rollupUglify } from 'rollup-plugin-uglify'
+// import { uglify as rollupUglify } from 'rollup-plugin-uglify'
 
 const inputs = [
   ['src/MSEPlayer.ts', 'MSEPlayer'],
-  ['src/pcmToWav.ts', 'pcmToWav']
+  ['src/pcmToWav.ts', 'pcmToWav'],
+  ['src/strToBase64.ts', 'strToBase64'],
+  ['src/base64ToBlob.ts', 'base64ToBlob'],
+  ['src/base64ToWavBlob.ts', 'base64ToWavBlob'],
+  ['src/bufferToBase64.ts', 'bufferToBase64'],
+  ['src/wavToMp3.ts', 'wavToMp3']
 ]
 
 const formats = [
@@ -16,6 +21,7 @@ function genConfigs () {
     const config = {
       input,
       plugins: [rollupTypescript()],
+      external: ['lamejs'],
       output: {
         name,
         format,
@@ -27,14 +33,15 @@ function genConfigs () {
     const configs = [...acc, config]
     // `uglifyjs` doesn't support es6
     // `esm` format will generate `export default`
-    if (format !== 'esm') {
-      const compactConfig = {
-        ...config,
-        plugins: [...config.plugins, rollupUglify()],
-        output: { ...config.output, file: `dist/${name}.${format}.min.js` }
-      }
-      configs.push(compactConfig)
-    }
+    // ignore uglify version
+    // if (format !== 'esm') {
+    //   const compactConfig = {
+    //     ...config,
+    //     plugins: [...config.plugins, rollupUglify()],
+    //     output: { ...config.output, file: `dist/${name}.${format}.min.js` }
+    //   }
+    //   configs.push(compactConfig)
+    // }
 
     return configs
   }, [])], [])

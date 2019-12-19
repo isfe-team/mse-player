@@ -29,5 +29,8 @@
     "rollup-plugin-typescript": "^1.0.1",
     "rollup-plugin-uglify": "^6.0.3",
     "typescript": "^3.7.2"
+  },
+  "dependencies": {
+    "lamejs": "^1.2.0"
   }
 }
