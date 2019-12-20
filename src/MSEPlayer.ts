@@ -1,3 +1,5 @@
+import readAsArrayBuffer$ from './helpers/readAsArrayBuffer$'
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 interface MSESdkError<T = any> {
   type: string;
@@ -32,6 +34,7 @@ export default class MSEPlayer {
   transformer!: Transformer
   mediaSource!: MediaSource | null
   lastAppend$!: Promise<void>
+
   constructor (option: MSESdkOption = { }) {
     const { files = [], mimeType = 'audio/mpeg', onError, ignoreError = true, transformer = identity } = option
     this.envSupported = MSEPlayer.checkEnvSupported()
@@ -119,20 +122,10 @@ export default class MSEPlayer {
 /**
  * readBuffer - read blobs and get arrayBuffers
  */
+
 function read (blobs: Array<Blob>): Promise<Array<ArrayBuffer>> {
   return Promise.all(blobs.map(function(blob) {
-    return new Promise<ArrayBuffer>(function(resolve, reject) {
-      // hmmm, no need to unbind, if it's smart enough
-      const reader = new FileReader()
-      reader.addEventListener('load', () => {
-        // the result must be `ArrayBuffer`
-        resolve(reader.result as ArrayBuffer)
-      })
-      reader.readAsArrayBuffer(blob)
-      reader.addEventListener('error', (err) => {
-        reject(genError('READ_FILE_ERROR', err))
-      })
-    })
+    return readAsArrayBuffer$(blob).then(null, (err) => Promise.reject(genError('READ_FILE_ERROR', err)))
   }))
 }
 

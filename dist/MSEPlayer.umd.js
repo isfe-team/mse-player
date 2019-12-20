@@ -43,6 +43,19 @@
     }
 
     /**
+     * Simple helper | bqliu
+     */
+    function readAsArrayBuffer$(x) {
+        return new Promise(function (resolve, reject) {
+            var fr = new FileReader();
+            // hmmm, no need to unbind, if it's smart enough
+            fr.addEventListener('load', function () { return resolve(fr.result); });
+            fr.addEventListener('error', function (e) { return reject(e); });
+            fr.readAsArrayBuffer(x);
+        });
+    }
+
+    /**
      * @example
      * const player = new MSEPlayer()
      * player.appendFiles(files)
@@ -131,18 +144,7 @@
      */
     function read(blobs) {
         return Promise.all(blobs.map(function (blob) {
-            return new Promise(function (resolve, reject) {
-                // hmmm, no need to unbind, if it's smart enough
-                var reader = new FileReader();
-                reader.addEventListener('load', function () {
-                    // the result must be `ArrayBuffer`
-                    resolve(reader.result);
-                });
-                reader.readAsArrayBuffer(blob);
-                reader.addEventListener('error', function (err) {
-                    reject(genError('READ_FILE_ERROR', err));
-                });
-            });
+            return readAsArrayBuffer$(blob).then(null, function (err) { return Promise.reject(genError('READ_FILE_ERROR', err)); });
         }));
     }
     /**

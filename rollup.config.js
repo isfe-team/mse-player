@@ -3,12 +3,15 @@ import rollupTypescript from 'rollup-plugin-typescript'
 
 const inputs = [
   ['src/MSEPlayer.ts', 'MSEPlayer'],
-  ['src/pcmToWav.ts', 'pcmToWav'],
-  ['src/strToBase64.ts', 'strToBase64'],
-  ['src/base64ToBlob.ts', 'base64ToBlob'],
-  ['src/base64ToWavBlob.ts', 'base64ToWavBlob'],
-  ['src/bufferToBase64.ts', 'bufferToBase64'],
-  ['src/wavToMp3.ts', 'wavToMp3']
+  ['src/helpers/addWavHeader.ts', 'helpers/addWavHeader'],
+  ['src/helpers/base64ToBlob.ts', 'helpers/base64ToBlob'],
+  ['src/helpers/base64ToWavBlob.ts', 'helpers/base64ToWavBlob'],
+  ['src/helpers/base64WithoutPrefixToBlob.ts', 'helpers/base64WithoutPrefixToBlob'],
+  ['src/helpers/bufferToBase64.ts', 'helpers/bufferToBase64'],
+  ['src/helpers/bufferToBase64Wav.ts', 'helpersbufferToBase64Wav'],
+  ['src/helpers/pcmToWav.ts', 'helpers/pcmToWav'],
+  ['src/helpers/readAsArrayBuffer$.ts', 'helpers/readAsArrayBuffer$'],
+  ['src/helpers/wavToMp3.ts', 'helpers/wavToMp3']
 ]
 
 const formats = [
@@ -18,12 +21,14 @@ const formats = [
 
 function genConfigs () {
   return inputs.reduce((acc, [input, name]) => [...acc, ...formats.reduce((acc, format) => {
+    const slashIndex = name.lastIndexOf('/')
+    const fileName = slashIndex !== -1 ? name.slice(slashIndex) : name
     const config = {
       input,
       plugins: [rollupTypescript()],
       external: ['lamejs'],
       output: {
-        name,
+        name: fileName,
         format,
         sourcemap: true,
         file: `dist/${name}.${format}.js`
